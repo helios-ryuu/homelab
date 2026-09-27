@@ -4,7 +4,6 @@ services:
     container_name: adguardhome-sync
     restart: unless-stopped
     network_mode: host
-    environment:
-      - CONFIG_FILE=/config/adguardhome-sync.yaml
+    command: ["run", "--config", "/config/adguardhome-sync.yaml"]
     volumes:
       - ./adguardhome-sync.yaml:/config/adguardhome-sync.yaml:ro
