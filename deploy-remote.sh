@@ -267,13 +267,16 @@ test_node_dns() {
     fi
 
     echo -n "Kiểm tra chặn quảng cáo trên ${label} (${query_ip}): "
-    local res
-    res=$(dig @"${query_ip}" doubleclick.net +short +time=2 +tries=1 2>/dev/null || true)
-    if [[ "$res" =~ "0.0.0.0" ]]; then
-        echo "PASS (0.0.0.0)"
-    else
-        echo "FAILED ($res)"
-    fi
+    local res=""
+    for try in {1..5}; do
+        res=$(dig @"${query_ip}" doubleclick.net +short +time=2 +tries=1 2>/dev/null || true)
+        if [[ "$res" =~ "0.0.0.0" ]]; then
+            echo "PASS (0.0.0.0)"
+            return 0
+        fi
+        sleep 2
+    done
+    echo "FAILED ($res)"
 }
 
 if command -v dig >/dev/null 2>&1; then

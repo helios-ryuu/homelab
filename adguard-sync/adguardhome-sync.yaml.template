@@ -1,6 +1,9 @@
 cron: "*/5 * * * *"
 runOnStart: true
 
+api:
+  port: 0
+
 origin:
   url: "${SYNC_ORIGIN_URL}"
   username: "${ADGUARD_ADMIN_USER}"

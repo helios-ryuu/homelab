@@ -203,6 +203,17 @@ done
 
 if [ "$adguard_ready" = false ]; then
     echo "[!] Cảnh báo: AdGuard Home chưa phản hồi ngay trên port 53."
+else
+    # Chờ AdGuard Home tải và nạp bộ lọc quy tắc
+    echo "[+] Đang chờ AdGuard Home nạp danh sách bộ lọc..."
+    for i in {1..8}; do
+        blocked=$(dig @"$TEST_IP" doubleclick.net +short +time=2 +tries=1 2>/dev/null || true)
+        if [[ "$blocked" =~ "0.0.0.0" ]]; then
+            echo "[+] Bộ lọc quảng cáo đã sẵn sàng chặn thành công (0.0.0.0)!"
+            break
+        fi
+        sleep 2
+    done
 fi
 
 # 7. Bước 4: Thiết lập AdGuardHome-Sync (Nếu là node Origin)
