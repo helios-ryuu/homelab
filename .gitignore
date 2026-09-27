@@ -1,1 +1,13 @@
+# Runtime AdGuard Home configs and backups
 AdGuardHome.yaml
+*.bak*
+
+# Environment secrets and node-specific configs
+.env
+*.env
+!.env.example
+*.local.yaml
+!*.local.yaml.example
+
+# Generated sync configurations
+adguardhome-sync.yaml

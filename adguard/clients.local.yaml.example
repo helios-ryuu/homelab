@@ -1,0 +1,32 @@
+# Ví dụ định nghĩa danh sách client bypass lọc quảng cáo hoặc cấu hình upstream riêng
+# Sao chép file này thành clients.local.yaml (được .gitignore bảo vệ) để tự động nạp khi chạy deploy.sh
+- name: Device-Example-1
+  ids:
+    - 192.168.1.100
+    - aa:bb:cc:dd:ee:01
+  tags: []
+  upstreams:
+    - 8.8.8.8
+    - 1.1.1.1
+  use_global_settings: false
+  filtering_enabled: false
+  parental_enabled: false
+  safebrowsing_enabled: false
+  use_global_blocked_services: false
+  ignore_querylog: false
+  ignore_statistics: false
+- name: Device-Example-2
+  ids:
+    - 192.168.1.101
+    - aa:bb:cc:dd:ee:02
+  tags: []
+  upstreams:
+    - 8.8.8.8
+    - 1.1.1.1
+  use_global_settings: false
+  filtering_enabled: false
+  parental_enabled: false
+  safebrowsing_enabled: false
+  use_global_blocked_services: false
+  ignore_querylog: false
+  ignore_statistics: false

@@ -9,11 +9,11 @@ http:
       - GET /dns-query/{ClientID}
       - POST /dns-query/{ClientID}
     insecure_enabled: false
-  address: <YOUR_HOST>:<YOUR_PORT>
+  address: __NODE_WEB_BIND__
   session_ttl: 30d
 users:
-  - name: admin
-    password: <YOUR_PASSWORD_HASH>
+  - name: __ADGUARD_ADMIN_USER__
+    password: __ADGUARD_PASSWORD_HASH__
 auth_attempts: 5
 block_auth_min: 15
 http_proxy: ""
@@ -21,7 +21,7 @@ language: ""
 theme: auto
 dns:
   bind_hosts:
-    - <YOUR_HOST>
+__NODE_BIND_HOSTS__
   port: 53
   anonymize_client_ip: false
   ratelimit: 20
@@ -30,18 +30,17 @@ dns:
   ratelimit_whitelist: []
   refuse_any: true
   upstream_dns:
-    - https://dns.google/dns-query
-    - tls://1.1.1.1
-    - https://dns.quad9.net/dns-query
-    - '[/example.ts.net/]100.100.100.100'
-    # Add more upstream DNS servers as needed, above are just examples of using Google DNS, Cloudflare DNS, Quad9 DNS, and a custom DNS server.
+    - 127.0.0.1:5335
+__TAILSCALE_UPSTREAM__
   upstream_dns_file: ""
   bootstrap_dns:
     - 9.9.9.10
     - 149.112.112.10
-    - 2620:fe::10
-    - 2620:fe::fe:10
-  fallback_dns: []
+    - 1.1.1.1
+    - 8.8.8.8
+  fallback_dns:
+    - 1.1.1.1
+    - 8.8.8.8
   upstream_mode: parallel
   fastest_timeout: 1s
   allowed_clients: []
@@ -52,7 +51,6 @@ dns:
     - hostname.bind
   trusted_proxies:
     - 127.0.0.0/8
-    - ::1/128
   cache_enabled: true
   cache_size: 67108864
   cache_ttl_min: 300
@@ -121,6 +119,38 @@ filters:
     url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
     name: AdAway Default Blocklist
     id: 2
+  - enabled: true
+    url: https://raw.githubusercontent.com/bigdargon/hostsVN/master/hosts
+    name: ABPVN (Chặn quảng cáo Việt Nam)
+    id: 1789632392
+  - enabled: true
+    url: https://big.oisd.nl
+    name: OISD Basic / Full (Bộ lọc toàn diện không gây lỗi web
+    id: 1789632393
+  - enabled: true
+    url: https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt
+    name: Hagezi Multi PRO (Bộ lọc chuyên nghiệp cực mạnh)
+    id: 1789632394
+  - enabled: true
+    url: https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/popupads.txt
+    name: Hagezi - PopUp Ads
+    id: 1789632395
+  - enabled: true
+    url: https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.txt
+    name: Hagezi - TIF (Medium)
+    id: 1789632398
+  - enabled: true
+    url: https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareAdGuardHome.txt
+    name: Dandelion Sprout's Anti-Malware / Video Hostnames
+    id: 1789632399
+  - enabled: true
+    url: https://someonewhocares.org/hosts/zero/hosts
+    name: Dan Pollock's hosts list
+    id: 1789632400
+  - enabled: true
+    url: https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    name: Steven Black Unified
+    id: 1789632401
 whitelist_filters: []
 user_rules: []
 dhcp:
@@ -182,7 +212,8 @@ clients:
     rdns: true
     dhcp: true
     hosts: true
-  persistent: []
+  persistent:
+__CLIENTS_PERSISTENT__
 log:
   enabled: true
   file: ""
