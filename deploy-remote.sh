@@ -10,9 +10,9 @@ if [ -f "$REPO_DIR/.env" ]; then
     source "$REPO_DIR/.env"
 fi
 
-PRIMARY_HOST="${PRIMARY_HOST:-}"
-SECONDARY_HOST="${SECONDARY_HOST:-}"
-REMOTE_USER="${REMOTE_USER:-$USER}"
+PRIMARY_HOST="${PRIMARY_HOST:-imac}"
+SECONDARY_HOST="${SECONDARY_HOST:-hp}"
+REMOTE_USER="${REMOTE_USER:-}"
 REMOTE_DIR="${REMOTE_DIR:-~/homelab}"
 REPO_URL="${REPO_URL:-$(git remote get-url origin 2>/dev/null || echo '')}"
 
@@ -44,10 +44,13 @@ git push origin main || {
     exit 1
 }
 
-# Xác định định dạng đích SSH (hỗ trợ cả SSH alias như 'imac', 'hp' hoặc user@host)
+# Xác định định dạng đích SSH (ưu tiên giữ nguyên SSH alias như 'imac', 'hp' để dùng custom port)
 get_ssh_target() {
     local host="$1"
-    if [ -n "${REMOTE_USER:-}" ]; then
+    if [[ "$host" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        # Là alias trong ~/.ssh/config, giữ nguyên để nhận đúng Port, User, Key
+        echo "${host}"
+    elif [ -n "${REMOTE_USER:-}" ]; then
         echo "${REMOTE_USER}@${host}"
     else
         echo "${host}"
