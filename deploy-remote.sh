@@ -44,17 +44,29 @@ git push origin main || {
     exit 1
 }
 
+# Xác định định dạng đích SSH (hỗ trợ cả SSH alias như 'imac', 'hp' hoặc user@host)
+get_ssh_target() {
+    local host="$1"
+    if [ -n "${REMOTE_USER:-}" ]; then
+        echo "${REMOTE_USER}@${host}"
+    else
+        echo "${host}"
+    fi
+}
+
 # Hàm deploy tới một node từ xa
 deploy_node() {
     local host="$1"
     local role="$2"
     local label="$3"
+    local target
+    target=$(get_ssh_target "$host")
 
     echo "--------------------------------------------------"
-    echo "[*] Bắt đầu triển khai trên ${label} (${REMOTE_USER}@${host})..."
+    echo "[*] Bắt đầu triển khai trên ${label} (SSH: ${target})..."
 
     # 1. Kiểm tra và clone/pull repo trên node từ xa
-    ssh -o BatchMode=no "${REMOTE_USER}@${host}" bash -s -- "${REMOTE_DIR}" "${REPO_URL}" << 'EOF'
+    ssh -o BatchMode=no "${target}" bash -s -- "${REMOTE_DIR}" "${REPO_URL}" << 'EOF'
         set -euo pipefail
         target_dir="$1"
         repo_url="$2"
@@ -74,23 +86,23 @@ EOF
 
     # 2. Đồng bộ các file cấu hình bảo mật cục bộ (gitignored) từ Fedora sang node đích
     local expanded_remote_dir
-    expanded_remote_dir=$(ssh "${REMOTE_USER}@${host}" "echo ${REMOTE_DIR}")
+    expanded_remote_dir=$(ssh "${target}" "echo ${REMOTE_DIR}")
 
     # Truyền clients.local.yaml nếu có
     if [ -f "$REPO_DIR/adguard/clients.local.yaml" ]; then
         echo "[+] Đang truyền adguard/clients.local.yaml sang ${host}..."
-        scp -q "$REPO_DIR/adguard/clients.local.yaml" "${REMOTE_USER}@${host}:${expanded_remote_dir}/adguard/clients.local.yaml"
+        scp -q "$REPO_DIR/adguard/clients.local.yaml" "${target}:${expanded_remote_dir}/adguard/clients.local.yaml"
     fi
 
     # Truyền .env nếu có
     if [ -f "$REPO_DIR/.env" ]; then
         echo "[+] Đang truyền file cấu hình .env sang ${host}..."
-        scp -q "$REPO_DIR/.env" "${REMOTE_USER}@${host}:${expanded_remote_dir}/.env"
+        scp -q "$REPO_DIR/.env" "${target}:${expanded_remote_dir}/.env"
     fi
 
     # 3. Chạy script deploy.sh trên node từ xa
     echo "[+] Đang chạy deploy.sh (${role}) trên ${host}..."
-    ssh -o BatchMode=no "${REMOTE_USER}@${host}" bash -s -- "${REMOTE_DIR}" "${role}" << 'EOF'
+    ssh -o BatchMode=no "${target}" bash -s -- "${REMOTE_DIR}" "${role}" << 'EOF'
         set -euo pipefail
         target_dir="$1"
         role="$2"
@@ -113,25 +125,40 @@ deploy_node "${PRIMARY_HOST}" "origin" "Primary Node (Origin)"
 # 4. Kiểm thử sau triển khai (Canary Verification)
 echo "--------------------------------------------------"
 echo "[4/4] Kiểm thử Canary DNS..."
+test_node_dns() {
+    local host="$1"
+    local label="$2"
+    local target
+    target=$(get_ssh_target "$host")
+
+    # Lấy IP thực tế của máy đích để query DNS
+    local query_ip
+    query_ip=$(ssh -o BatchMode=no "${target}" "tailscale ip -4 2>/dev/null || ip -4 route get 1.1.1.1 2>/dev/null | grep -oP '(?<=src\s)\d+(\.\d+){3}' | head -n1 || hostname -I | awk '{print \$1}'" 2>/dev/null || true)
+    query_ip=$(echo "$query_ip" | tr -d '[:space:]')
+    if [ -z "$query_ip" ]; then
+        query_ip="$host"
+    fi
+
+    echo -n "Kiểm tra chặn quảng cáo trên ${label} (${query_ip}): "
+    local res
+    res=$(dig @"${query_ip}" doubleclick.net +short +time=2 +tries=1 2>/dev/null || true)
+    if [[ "$res" =~ "0.0.0.0" ]]; then
+        echo "PASS (0.0.0.0)"
+    else
+        echo "FAILED ($res)"
+    fi
+}
+
 if command -v dig >/dev/null 2>&1; then
-    echo -n "Kiểm tra chặn quảng cáo trên Primary (${PRIMARY_HOST}): "
-    res_primary=$(dig @"${PRIMARY_HOST}" doubleclick.net +short +time=2 +tries=1 || true)
-    if [[ "$res_primary" =~ "0.0.0.0" ]]; then
-        echo "PASS (0.0.0.0)"
-    else
-        echo "FAILED ($res_primary)"
-    fi
+    test_node_dns "${PRIMARY_HOST}" "Primary Node"
+    test_node_dns "${SECONDARY_HOST}" "Secondary Node"
 
-    echo -n "Kiểm tra chặn quảng cáo trên Secondary (${SECONDARY_HOST}): "
-    res_secondary=$(dig @"${SECONDARY_HOST}" doubleclick.net +short +time=2 +tries=1 || true)
-    if [[ "$res_secondary" =~ "0.0.0.0" ]]; then
-        echo "PASS (0.0.0.0)"
-    else
-        echo "FAILED ($res_secondary)"
-    fi
-
-    echo -n "Kiểm tra phân giải recursive internet qua Unbound (cloudflare.com): "
-    res_cf=$(dig @"${PRIMARY_HOST}" cloudflare.com +short +time=2 +tries=1 || true)
+    # Kiểm tra phân giải internet recursive
+    primary_target=$(get_ssh_target "${PRIMARY_HOST}")
+    primary_ip=$(ssh -o BatchMode=no "${primary_target}" "tailscale ip -4 2>/dev/null || ip -4 route get 1.1.1.1 2>/dev/null | grep -oP '(?<=src\s)\d+(\.\d+){3}' | head -n1 || hostname -I | awk '{print \$1}'" 2>/dev/null || echo "${PRIMARY_HOST}")
+    primary_ip=$(echo "$primary_ip" | tr -d '[:space:]')
+    echo -n "Kiểm tra phân giải recursive internet qua Unbound (${primary_ip}): "
+    res_cf=$(dig @"${primary_ip}" cloudflare.com +short +time=2 +tries=1 2>/dev/null || true)
     if [ -n "$res_cf" ]; then
         echo "PASS ($res_cf)"
     else
