@@ -181,18 +181,28 @@ echo "[+] Đã sinh AdGuardHome.yaml từ template chuẩn hóa."
 
 (
     cd "$REPO_DIR/adguard"
-    docker compose restart adguardhome 2>/dev/null || docker compose up -d
+    docker compose up -d
+    docker compose restart adguardhome 2>/dev/null || true
 )
-echo "[+] Container AdGuard Home đã được cập nhật."
+echo "[+] Container AdGuard Home đã được cập nhật và khởi chạy."
 
 # 6. Bước 3: Kiểm tra phân giải qua AdGuard Home
 echo "[3/4] Kiểm tra dịch vụ AdGuard Home..."
-sleep 2
 TEST_IP="${NODE_LAN_IP:-127.0.0.1}"
-if dig @"$TEST_IP" cloudflare.com +short +time=2 +tries=1 > /dev/null 2>&1; then
-    echo "[+] AdGuard Home (${TEST_IP}:53) phân giải thành công!"
-else
-    echo "[!] AdGuard Home đang hoàn tất khởi động."
+adguard_ready=false
+for i in {1..5}; do
+    if dig @"$TEST_IP" cloudflare.com +short +time=2 +tries=1 > /dev/null 2>&1; then
+        adguard_ready=true
+        echo "[+] AdGuard Home (${TEST_IP}:53) phân giải thành công!"
+        break
+    else
+        echo "[!] Đang chờ AdGuard Home sẵn sàng (lần $i/5)..."
+        sleep 2
+    fi
+done
+
+if [ "$adguard_ready" = false ]; then
+    echo "[!] Cảnh báo: AdGuard Home chưa phản hồi ngay trên port 53."
 fi
 
 # 7. Bước 4: Thiết lập AdGuardHome-Sync (Nếu là node Origin)
@@ -214,9 +224,11 @@ if [ "$NODE_ROLE" = "origin" ]; then
 
         (
             cd "$REPO_DIR/adguard-sync"
-            docker compose restart adguardhome-sync 2>/dev/null || docker compose up -d
+            docker compose up -d
+            docker compose restart adguardhome-sync 2>/dev/null || true
         )
         echo "[+] AdGuardHome-Sync container đã khởi chạy trên node Origin."
+        sleep 3
         echo "[+] Trạng thái log sync mới nhất:"
         docker logs --tail 10 adguardhome-sync 2>&1 || true
     fi

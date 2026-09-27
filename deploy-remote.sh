@@ -285,10 +285,10 @@ if command -v dig >/dev/null 2>&1; then
     primary_ip=$(echo "$primary_ip" | tr -d '[:space:]')
     echo -n "Kiểm tra phân giải recursive internet qua Unbound (${primary_ip}): "
     res_cf=$(dig @"${primary_ip}" cloudflare.com +short +time=2 +tries=1 2>/dev/null || true)
-    if [ -n "$res_cf" ]; then
+    if [ -n "$res_cf" ] && [[ ! "$res_cf" =~ (error|refused) ]]; then
         echo "PASS ($res_cf)"
     else
-        echo "FAILED"
+        echo "FAILED (${res_cf:-no response})"
     fi
 else
     echo "Lệnh 'dig' không có sẵn trên máy Fedora để thực hiện kiểm thử tự động."
